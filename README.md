@@ -1,5 +1,4 @@
-
-[README_streamlit.md](https://github.com/user-attachments/files/25690999/README_streamlit.md)
+Streamlit App Link: https://madridrentalapp-mariangarabana.streamlit.app/
 # Streamlit Data Apps
 
 **MSc Business Analytics & Data Science · IE University · 2026**
