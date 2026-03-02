@@ -318,6 +318,7 @@ page = st.sidebar.radio("Navigate", [
 ])
 
 st.title(page)
+st.header("Made by Marian Garabana - MBDS Student at IE University")
 st.divider()
 
 
