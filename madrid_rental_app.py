@@ -487,8 +487,10 @@ elif page == "📊 High Rent Classifier":
     prob_low  = M['y_prob_l'][M['y_test_l'] == 0]
     prob_high = M['y_prob_l'][M['y_test_l'] == 1]
     
-    fig = px.histogram(x=prob_low, nbinsx=20, marker_color='blue', opacity=0.6, name='Low Rent')
-    fig.add_histogram(x=prob_high, nbinsx=20, marker_color='red', opacity=0.6, name='High Rent')
+    fig = go.Figure()
+    fig.add_trace(go.Histogram(x=prob_low, nbinsx=20, marker_color='blue', opacity=0.6, name='Low Rent'))
+    fig.add_trace(go.Histogram(x=prob_high, nbinsx=20, marker_color='red', opacity=0.6, name='High Rent'))
+    fig.update_layout(barmode='overlay', title='Probability Separation by Class')
     fig.add_vline(x=0.5, line_color='black', line_width=2)
     st.plotly_chart(fig, use_container_width=True)
 
