@@ -16,6 +16,7 @@ from sklearn.metrics import (r2_score, mean_squared_error, mean_absolute_error,
                              roc_curve, precision_score, recall_score, f1_score)
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import statsmodels.api as sm
+from scipy import stats
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -463,6 +464,12 @@ if page == "🔍 Market Explorer":
 
     with tab_data:
         st.dataframe(filtered)
+        st.download_button(
+            "⬇️ Download filtered data as CSV",
+            filtered.to_csv(index=False),
+            file_name="madrid_rentals_filtered.csv",
+            mime="text/csv",
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -596,10 +603,13 @@ elif page == "💶 Rent Predictor":
     tab_perf, tab_predict = st.tabs(["📈 Model Performance", "🔮 Predict Rent"])
 
     with tab_perf:
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         col1.metric("R² Test", f"{M['r2_test_r']:.3f}")
         col2.metric("RMSE",    f"€{M['rmse_r']:,.0f}")
         col3.metric("MAE",     f"€{M['mae_r']:,.0f}")
+        dw = sm.stats.stattools.durbin_watson(M['ols_model'].resid)
+        col4.metric("Durbin-Watson", f"{dw:.3f}",
+                    help="~2.0 = no autocorrelation · <1.5 or >2.5 = concern")
 
         # Coefficient chart
         coef_plot = M['coef_df'][M['coef_df']['Feature'] != 'const'].copy()
@@ -630,6 +640,31 @@ elif page == "💶 Rent Predictor":
                              opacity=0.6, color_discrete_sequence=['#3498DB'])
             fig.add_hline(y=0, line_dash='dash', line_color='#2C3E50')
             st.plotly_chart(fig, use_container_width=True)
+
+        # Q-Q plot — residual normality check
+        residuals = np.array(M['y_pred_r']) - np.array(M['y_test_r'])
+        (osm, osr), (slope, intercept, _) = stats.probplot(residuals)
+        fig_qq = go.Figure()
+        fig_qq.add_trace(go.Scatter(
+            x=osm, y=osr, mode='markers',
+            marker={'color': '#C0392B', 'opacity': 0.6, 'size': 5},
+            name='Residuals',
+        ))
+        fig_qq.add_trace(go.Scatter(
+            x=osm, y=slope * np.array(osm) + intercept,
+            mode='lines', line=dict(color='#2C3E50', dash='dash'),
+            name='Normal reference line',
+        ))
+        fig_qq.update_layout(
+            title='Q-Q Plot — Residual Normality Check',
+            xaxis_title='Theoretical Quantiles',
+            yaxis_title='Ordered Residuals (€)',
+        )
+        st.plotly_chart(fig_qq, use_container_width=True)
+        st.caption(
+            "Points following the dashed line indicate normally distributed residuals — "
+            "a core OLS assumption. Deviation at the tails signals skewness or outliers."
+        )
 
     with tab_predict:
         st.subheader("Predict rent for a new property")
@@ -701,10 +736,12 @@ elif page == "📊 High Rent Classifier":
     tab_perf, tab_classify = st.tabs(["📈 Model Performance", "🔮 Classify Property"])
 
     with tab_perf:
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         col1.metric("Accuracy",             f"{M['acc_l']:.2%}")
         col2.metric("AUC Test",             f"{M['auc_test_l']:.3f}")
         col3.metric("AUC Gap (Train−Test)", f"{M['auc_train_l'] - M['auc_test_l']:.3f}")
+        col4.metric("McFadden's R²",        f"{M['logit_model'].prsquared:.3f}",
+                    help="Pseudo-R² for logistic regression · >0.2 is considered good fit")
 
         # ROC curve with AUC labels in legend
         fig = go.Figure()
