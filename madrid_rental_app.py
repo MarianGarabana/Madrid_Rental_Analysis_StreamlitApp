@@ -25,6 +25,29 @@ st.set_page_config(page_title="Madrid Rental Market", page_icon="🏠", layout="
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# CUSTOM CSS
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<style>
+[data-testid="stSidebar"] {
+    background-color: #FDF6EC;
+}
+[data-testid="stMetric"] {
+    background-color: #FDF6EC;
+    border-left: 4px solid #C0392B;
+    border-radius: 6px;
+    padding: 12px 16px;
+}
+[data-testid="stTabs"] [role="tab"] {
+    font-weight: 600;
+}
+h1, h2, h3 { color: #2C3E50; }
+hr { border-color: #E8D5B7; }
+</style>
+""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # DATA LOADING & CLEANING  ← from EDA notebook
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -306,19 +329,44 @@ df['Segment'] = df['Cluster'].map(lambda c: M['segment_labels'][c][0])
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# NAVIGATION
+# SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
-# TODO: style the sidebar however you like (logo, colours, etc.)
+with st.sidebar:
+    st.markdown("""
+    <div style='text-align:center; padding:12px 0 8px 0;'>
+        <span style='font-size:2.2rem;'>🏠</span>
+        <h2 style='margin:4px 0 0 0; color:#C0392B; font-size:1.05rem; font-weight:700;'>
+            Madrid Rental Market
+        </h2>
+        <p style='font-size:0.73rem; color:#95a5a6; margin:2px 0 0 0;'>
+            IE University · MBDS · 2025
+        </p>
+    </div>
+    <hr style='border-color:#E8D5B7; margin:8px 0 16px 0;'>
+    """, unsafe_allow_html=True)
 
-page = st.sidebar.radio("Navigate", [
-    "🔍 Market Explorer",
-    "🏘️ Property Segments",
-    "💶 Rent Predictor",
-    "📊 High Rent Classifier",
-])
+    page = st.radio("Navigate", [
+        "🔍 Market Explorer",
+        "🏘️ Property Segments",
+        "💶 Rent Predictor",
+        "📊 High Rent Classifier",
+    ])
 
+    st.markdown(f"""
+    <hr style='border-color:#E8D5B7; margin:16px 0 8px 0;'>
+    <p style='font-size:0.70rem; color:#bdc3c7; text-align:center; line-height:1.6;'>
+        Dataset: Idealista Madrid<br>
+        n = {len(df):,} listings<br>
+        Built with Streamlit · scikit-learn
+    </p>
+    """, unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE HEADER
+# ══════════════════════════════════════════════════════════════════════════════
 st.title(page)
-st.header("Made by Marian Garabana - MBDS Student at IE University")
+st.caption("Marian Garabana · MBDS Student at IE University")
 st.divider()
 
 
@@ -328,37 +376,93 @@ st.divider()
 if page == "🔍 Market Explorer":
     rent_min, rent_max = int(df['Rent'].min()), int(df['Rent'].max())
     selected_rent = st.sidebar.slider("Rent Range (€)", rent_min, rent_max, (rent_min, rent_max))
-    selected_districts = st.sidebar.multiselect("Select Districts:", df['District'].unique().tolist(), default= df['District'].unique().tolist())
+    selected_districts = st.sidebar.multiselect(
+        "Select Districts:", df['District'].unique().tolist(),
+        default=df['District'].unique().tolist()
+    )
 
-    filtered = df[df['District'].isin(selected_districts) & df['Rent'].between(selected_rent[0], selected_rent[1])]
+    filtered = df[
+        df['District'].isin(selected_districts) &
+        df['Rent'].between(selected_rent[0], selected_rent[1])
+    ]
+
+    # Metrics with delta vs. full dataset baseline
+    overall_median = df['Rent'].median()
+    overall_sqmt   = df['Sq.Mt'].mean()
+    overall_ppsqm  = df['Price_per_sqm'].mean()
 
     col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Properties",   f"{len(filtered):,}",
+                delta=f"{len(filtered) - len(df):,} vs all")
+    col2.metric("Median Rent",  f"€{filtered['Rent'].median():,.0f}",
+                delta=f"€{filtered['Rent'].median() - overall_median:+,.0f} vs overall")
+    col3.metric("Avg Size",     f"{filtered['Sq.Mt'].mean():.0f} m²",
+                delta=f"{filtered['Sq.Mt'].mean() - overall_sqmt:+.0f} m²")
+    col4.metric("Avg Price/m²", f"€{filtered['Price_per_sqm'].mean():.2f}",
+                delta=f"€{filtered['Price_per_sqm'].mean() - overall_ppsqm:+.2f}")
 
-    with col1:
-            st.metric("Number of Properties", len(filtered))
-    with col2:
-        st.metric("Median Rent", filtered['Rent'].median())
-    with col3:
-        st.metric("Avg Square Meters", filtered['Sq.Mt'].mean().round(2))
-    with col4:
-        st.metric("Avg Price per m2", filtered['Price_per_sqm'].mean().round(2))
+    with st.expander("How this works"):
+        st.write(
+            f"Exploratory analysis of {len(df):,} Madrid rental listings sourced from Idealista. "
+            "Use the sidebar to filter by rent range and district. "
+            "Delta arrows compare your filtered selection against the full dataset baseline."
+        )
 
-    fig = px.histogram(filtered, x='Rent', nbins=40)
-    fig.add_vline(x=filtered['Rent'].median(), line_width=2, line_color="red")
-    st.plotly_chart(fig, use_container_width=True)
+    tab_charts, tab_zone, tab_data = st.tabs(["📈 Charts", "🗺️ By Zone", "📋 Raw Data"])
 
-    fig = px.bar(filtered.groupby('District')['Rent'].median().reset_index().sort_values('Rent'), x='Rent', y='District', orientation='h')
-    fig.update_layout(title='Median Rent by District')
-    st.plotly_chart(fig, use_container_width=True)
+    with tab_charts:
+        # Annotated histogram
+        median_val = filtered['Rent'].median()
+        fig = px.histogram(filtered, x='Rent', nbins=40, title='Rent Distribution',
+                           color_discrete_sequence=['#C0392B'])
+        fig.add_vline(x=median_val, line_width=2, line_color='#2C3E50',
+                      annotation_text=f"Median: €{median_val:,.0f}",
+                      annotation_position="top right",
+                      annotation_font_color='#2C3E50')
+        st.plotly_chart(fig, use_container_width=True)
 
-    fig = px.scatter(filtered, x='Sq.Mt', y='Rent', color='District', size='Rent', title='Rent vs Sq.Mt')
-    st.plotly_chart(fig, use_container_width=True)
+        # Box plot by district
+        fig = px.box(filtered, x='Rent', y='District',
+                     title='Rent Distribution by District',
+                     color_discrete_sequence=['#C0392B'])
+        fig.update_layout(yaxis={'categoryorder': 'median ascending'})
+        st.plotly_chart(fig, use_container_width=True)
 
-    fig = px.imshow(filtered[['Rent','Sq.Mt','Bedrooms','Floor','Outer','Elevator','Price_per_sqm']].corr(), text_auto='.2f', color_continuous_scale='RdBu_r')
-    st.plotly_chart(fig, use_container_width=True)
+        # Scatter
+        fig = px.scatter(filtered, x='Sq.Mt', y='Rent', color='District',
+                         size='Rent', title='Rent vs Size', opacity=0.7)
+        st.plotly_chart(fig, use_container_width=True)
 
-    st.dataframe(filtered)
+        # Correlation heatmap
+        fig = px.imshow(
+            filtered[['Rent','Sq.Mt','Bedrooms','Floor','Outer','Elevator','Price_per_sqm']].corr(),
+            text_auto='.2f', color_continuous_scale='RdBu_r', title='Correlation Matrix'
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
+    with tab_zone:
+        zone_summary = (
+            filtered.groupby('Zone')['Rent']
+            .agg(['median', 'mean', 'count'])
+            .reset_index()
+        )
+        zone_summary.columns = ['Zone', 'Median Rent', 'Mean Rent', 'Count']
+        zone_summary = zone_summary.sort_values('Median Rent', ascending=False)
+
+        fig = px.bar(zone_summary, x='Zone', y='Median Rent',
+                     title='Median Rent by Geographic Zone',
+                     color='Median Rent', color_continuous_scale='Reds', text='Median Rent')
+        fig.update_traces(texttemplate='€%{text:,.0f}', textposition='outside')
+        st.plotly_chart(fig, use_container_width=True)
+
+        fig = px.box(filtered, x='Rent', y='Zone',
+                     title='Rent Distribution by Zone',
+                     color_discrete_sequence=['#C0392B'])
+        fig.update_layout(yaxis={'categoryorder': 'median ascending'})
+        st.plotly_chart(fig, use_container_width=True)
+
+    with tab_data:
+        st.dataframe(filtered)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -366,40 +470,113 @@ if page == "🔍 Market Explorer":
 # ══════════════════════════════════════════════════════════════════════════════
 elif page == "🏘️ Property Segments":
 
+    with st.expander("How this works"):
+        st.write(
+            "K-Means clustering (k=5) applied to 5 property features: size (m²), bedrooms, floor, "
+            "exterior exposure, and property type (special/standard). k was validated using the elbow "
+            "method and silhouette analysis. Features were scaled with StandardScaler before clustering "
+            "to ensure equal weighting across dimensions."
+        )
+
     summary = df.groupby('Segment').agg(
         Properties=('Rent', 'count'),
         Median_rent=('Rent', 'median'),
         Median_SqMt=('Sq.Mt', 'median'),
         Median_Floor=('Floor', 'median'),
         Pct_Outer=('Outer', 'mean'),
+        Pct_Special=('Is_Special', 'mean'),
     ).reset_index()
 
-    st.dataframe(summary)
+    seg_desc   = {name: desc for _, (name, desc) in M['segment_labels'].items()}
+    seg_colors = ['#3498DB', '#2ECC71', '#F39C12', '#9B59B6', '#C0392B']
 
-    fig = px.scatter(df, x='Sq.Mt', y='Rent', color='Segment', size='Price_per_sqm', title='Rent vs Sq.Mt')
-    st.plotly_chart(fig, use_container_width=True)
+    tab_overview, tab_classify = st.tabs(["📊 Overview", "🔮 Classify Property"])
 
-    fig = px.bar(summary, x='Segment', y='Median_rent', orientation='v', title='Median Rent by Segment')
-    st.plotly_chart(fig, use_container_width=True)
+    with tab_overview:
+        # Segment cards
+        card_cols = st.columns(len(summary))
+        for i, (_, row) in enumerate(summary.iterrows()):
+            color      = seg_colors[i % len(seg_colors)]
+            desc_short = seg_desc.get(row['Segment'], '')[:90] + '…'
+            with card_cols[i]:
+                st.markdown(f"""
+                <div style='border-left:4px solid {color}; background:#FAFAFA;
+                            border-radius:6px; padding:10px 12px; min-height:170px;'>
+                    <b style='color:{color}; font-size:0.85rem;'>{row['Segment']}</b><br>
+                    <small>🏠 {int(row['Properties'])} listings</small><br>
+                    <small>💶 €{int(row['Median_rent']):,} median</small><br>
+                    <small>📐 {int(row['Median_SqMt'])} m²</small><br><br>
+                    <small style='color:#7f8c8d;'>{desc_short}</small>
+                </div>
+                """, unsafe_allow_html=True)
 
+        st.markdown("")
 
-    for cluster_id, (name, desc) in M['segment_labels'].items():
-        with st.expander(f"{name}"):
-            st.write(desc)
-    
-    sqm = st.number_input("Square meters", min_value=0, max_value=1000, value=100)
-    bedrooms = st.number_input("Bedrooms", min_value=0, max_value=10, value=2)
-    floor = st.number_input("Floor", min_value=0, max_value=10, value=1)
-    is_special = st.checkbox("Special", value=False)
-    outer = st.checkbox("Outer", value=False)
+        col_pie, col_bar = st.columns(2)
+        with col_pie:
+            fig = px.pie(summary, values='Properties', names='Segment',
+                         title='Share of Listings per Segment',
+                         color_discrete_sequence=seg_colors, hole=0.35)
+            st.plotly_chart(fig, use_container_width=True)
+        with col_bar:
+            fig = px.bar(summary.sort_values('Median_rent'), x='Segment', y='Median_rent',
+                         title='Median Rent by Segment',
+                         color='Median_rent', color_continuous_scale='Reds', text='Median_rent')
+            fig.update_traces(texttemplate='€%{text:,.0f}', textposition='outside')
+            st.plotly_chart(fig, use_container_width=True)
 
-    if st.button("Classify"):
-        arr    = np.array([[sqm, bedrooms, floor, int(is_special), int(outer)]])
-        scaled = M['cluster_scaler'].transform(arr)
-        cid    = M['kmeans'].predict(scaled)[0]
-        name, desc = M['segment_labels'][cid]
-        st.write(f"This property belongs to the {name} segment")
+        # Scatter
+        fig = px.scatter(df, x='Sq.Mt', y='Rent', color='Segment',
+                         size='Price_per_sqm', title='Rent vs Size by Segment',
+                         opacity=0.7, color_discrete_sequence=seg_colors)
+        st.plotly_chart(fig, use_container_width=True)
 
+        # Radar chart — compare segments across normalised dimensions
+        radar_dims   = ['Median_rent', 'Median_SqMt', 'Median_Floor', 'Pct_Outer', 'Pct_Special']
+        radar_labels = ['Median Rent', 'Median Size', 'Floor Level', 'Exterior %', 'Premium Type %']
+        summary_norm = summary.copy()
+        for dim in radar_dims:
+            rng = summary_norm[dim].max() - summary_norm[dim].min()
+            summary_norm[f'{dim}_n'] = (
+                (summary_norm[dim] - summary_norm[dim].min()) / rng * 100 if rng > 0 else 50
+            )
+        fig_radar = go.Figure()
+        for i, (_, row) in enumerate(summary_norm.iterrows()):
+            vals = [row[f'{d}_n'] for d in radar_dims]
+            fig_radar.add_trace(go.Scatterpolar(
+                r=vals + [vals[0]],
+                theta=radar_labels + [radar_labels[0]],
+                fill='toself',
+                name=row['Segment'],
+                line_color=seg_colors[i % len(seg_colors)],
+                opacity=0.75,
+            ))
+        fig_radar.update_layout(
+            polar={'radialaxis': {'visible': True, 'range': [0, 100]}},
+            title='Segment Profiles (each dimension normalised 0–100)',
+            height=500,
+        )
+        st.plotly_chart(fig_radar, use_container_width=True)
+
+    with tab_classify:
+        st.subheader("Which segment does this property belong to?")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            sqm      = st.number_input("Square meters", 10, 1000, 100)
+            bedrooms = st.number_input("Bedrooms",       0,   10,   2)
+            floor    = st.number_input("Floor",           0,   25,   1)
+        with col_b:
+            is_special = st.checkbox(
+                "Special property (penthouse / duplex / cottage / semidetached)")
+            outer = st.checkbox("Exterior facing")
+
+        if st.button("Classify Segment", type="primary"):
+            arr    = np.array([[sqm, bedrooms, floor, int(is_special), int(outer)]])
+            scaled = M['cluster_scaler'].transform(arr)
+            cid    = M['kmeans'].predict(scaled)[0]
+            name, desc = M['segment_labels'][cid]
+            st.success(f"**{name}**")
+            st.info(desc)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -407,138 +584,245 @@ elif page == "🏘️ Property Segments":
 # ══════════════════════════════════════════════════════════════════════════════
 elif page == "💶 Rent Predictor":
 
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("R² Test", f"{M['r2_test_r']:.2f}")
-    with col2:
-        st.metric("RMSE", f"{M['rmse_r']:.2f}")
-    with col3:
-        st.metric("MAE", f"{M['mae_r']:.2f}")
+    with st.expander("How this works"):
+        st.write(
+            "OLS linear regression trained on 80% of the dataset. "
+            "Multicollinearity was addressed by removing features with VIF > 10. "
+            "Feature selection used RFECV (Repeated K-Fold, 5 splits × 3 repeats, MSE scoring), "
+            f"retaining {len(M['selected_features'])} features: {', '.join(M['selected_features'])}. "
+            "The final model is fit with statsmodels to provide p-values and 95% prediction intervals."
+        )
 
-    coef_plot = M['coef_df'][M['coef_df']['Feature'] != 'const'].copy()
-    coef_plot['Direction'] = coef_plot['Effect (€)'].apply(lambda x: 'Increases rent' if x > 0 else 'Decreases rent')
-    fig = px.bar(coef_plot, x='Effect (€)', y='Feature', color='Direction', orientation='h',
-                 color_discrete_map={'Increases rent': 'green', 'Decreases rent': 'red'},
-                 title='Effect of Each Feature on Rent (€)')
-    st.plotly_chart(fig, use_container_width=True)
+    tab_perf, tab_predict = st.tabs(["📈 Model Performance", "🔮 Predict Rent"])
 
-    fig = px.scatter(x=M['y_test_r'], y=M['y_pred_r'],
-                     labels={'x': 'Actual Rent (€)', 'y': 'Predicted Rent (€)'},
-                     title='Actual vs Predicted Rent')
-    min_v, max_v = float(M['y_test_r'].min()), float(M['y_test_r'].max())
-    fig.add_shape(type='line', x0=min_v, y0=min_v, x1=max_v, y1=max_v,
-                  line=dict(color='red', dash='dash'))
-    st.plotly_chart(fig, use_container_width=True)
+    with tab_perf:
+        col1, col2, col3 = st.columns(3)
+        col1.metric("R² Test", f"{M['r2_test_r']:.3f}")
+        col2.metric("RMSE",    f"€{M['rmse_r']:,.0f}")
+        col3.metric("MAE",     f"€{M['mae_r']:,.0f}")
 
-    st.subheader("Predict rent for a new property")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        sqm_r      = st.number_input("Size (m²)",    15,  500, 80,  key='r_sqm')
-        bedrooms_r = st.number_input("Bedrooms",      0,    8,  2,  key='r_bed')
-        floor_r    = st.number_input("Floor",          0,   25,  3,  key='r_floor')
-        outer_r    = st.checkbox("Exterior facing",            key='r_outer')
-    with col_b:
-        elevator_r   = st.checkbox("Has elevator",             key='r_elev')
-        is_special_r = st.checkbox("Penthouse / Duplex / Cottage", key='r_spec')
-        is_central_r = st.checkbox("Central district",         key='r_cent')
-        is_studio_r  = st.checkbox("Listed as Studio",         key='r_stud')
+        # Coefficient chart
+        coef_plot = M['coef_df'][M['coef_df']['Feature'] != 'const'].copy()
+        coef_plot['Direction'] = coef_plot['Effect (€)'].apply(
+            lambda x: 'Increases rent' if x > 0 else 'Decreases rent')
+        fig = px.bar(coef_plot, x='Effect (€)', y='Feature', color='Direction',
+                     orientation='h',
+                     color_discrete_map={'Increases rent': '#27AE60', 'Decreases rent': '#C0392B'},
+                     title='Effect of Each Feature on Rent (€)')
+        st.plotly_chart(fig, use_container_width=True)
 
-    if st.button("Predict Rent", type="primary"):
-        input_dict = {
-            'Sq.Mt': sqm_r, 'Bedrooms': bedrooms_r, 'Floor': floor_r,
-            'Outer': int(outer_r), 'Elevator': int(elevator_r),
-            'Is_Special': int(is_special_r), 'Is_Central': int(is_central_r),
-            'Is_Studio': int(is_studio_r)
-        }
-        input_df = pd.DataFrame([input_dict])[M['selected_features']]
-        input_sm = sm.add_constant(input_df, has_constant='add')
-        prediction = M['ols_model'].predict(input_sm)[0]
-        st.metric("Predicted Monthly Rent", f"€{prediction:,.0f}")
-        pred_sum = M['ols_model'].get_prediction(input_sm).summary_frame(alpha=0.05)
-        lo = pred_sum['obs_ci_lower'].values[0]
-        hi = pred_sum['obs_ci_upper'].values[0]
-        st.caption(f"95% prediction interval: €{lo:,.0f} – €{hi:,.0f}")
+        col_scatter, col_resid = st.columns(2)
+        with col_scatter:
+            fig = px.scatter(x=M['y_test_r'], y=M['y_pred_r'],
+                             labels={'x': 'Actual Rent (€)', 'y': 'Predicted Rent (€)'},
+                             title='Actual vs Predicted Rent',
+                             opacity=0.6, color_discrete_sequence=['#C0392B'])
+            min_v, max_v = float(M['y_test_r'].min()), float(M['y_test_r'].max())
+            fig.add_shape(type='line', x0=min_v, y0=min_v, x1=max_v, y1=max_v,
+                          line=dict(color='#2C3E50', dash='dash'))
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col_resid:
+            residuals = np.array(M['y_pred_r']) - np.array(M['y_test_r'])
+            fig = px.scatter(x=M['y_test_r'], y=residuals,
+                             labels={'x': 'Actual Rent (€)', 'y': 'Residual (Predicted − Actual, €)'},
+                             title='Residuals vs Actual Rent',
+                             opacity=0.6, color_discrete_sequence=['#3498DB'])
+            fig.add_hline(y=0, line_dash='dash', line_color='#2C3E50')
+            st.plotly_chart(fig, use_container_width=True)
+
+    with tab_predict:
+        st.subheader("Predict rent for a new property")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            sqm_r      = st.number_input("Size (m²)",    15,  500, 80,  key='r_sqm',
+                                         help="Total usable floor area in square metres")
+            bedrooms_r = st.number_input("Bedrooms",      0,    8,  2,  key='r_bed',
+                                         help="Number of bedrooms (0 = studio)")
+            floor_r    = st.number_input("Floor",          0,   25,  3,  key='r_floor',
+                                         help="Floor number (0 = ground floor)")
+            outer_r    = st.checkbox("Exterior facing", key='r_outer',
+                                     help="Does the property face an exterior street or garden?")
+        with col_b:
+            elevator_r   = st.checkbox("Has elevator",                   key='r_elev')
+            is_special_r = st.checkbox("Penthouse / Duplex / Cottage",   key='r_spec',
+                                       help="Penthouse, duplex, cottage, or semidetached")
+            is_central_r = st.checkbox("Central district",               key='r_cent',
+                                       help="Salamanca, Chamberí, Retiro, or Centro")
+            is_studio_r  = st.checkbox("Listed as Studio",               key='r_stud',
+                                       help="Property is listed with 'Estudio' in the address")
+
+        if st.button("Predict Rent", type="primary"):
+            input_dict = {
+                'Sq.Mt': sqm_r, 'Bedrooms': bedrooms_r, 'Floor': floor_r,
+                'Outer': int(outer_r), 'Elevator': int(elevator_r),
+                'Is_Special': int(is_special_r), 'Is_Central': int(is_central_r),
+                'Is_Studio': int(is_studio_r)
+            }
+            input_df   = pd.DataFrame([input_dict])[M['selected_features']]
+            input_sm   = sm.add_constant(input_df, has_constant='add')
+            prediction = M['ols_model'].predict(input_sm)[0]
+            pred_sum   = M['ols_model'].get_prediction(input_sm).summary_frame(alpha=0.05)
+            lo = pred_sum['obs_ci_lower'].values[0]
+            hi = pred_sum['obs_ci_upper'].values[0]
+
+            col_r1, col_r2 = st.columns(2)
+            col_r1.metric("Predicted Monthly Rent",  f"€{prediction:,.0f}")
+            col_r2.metric("95% Prediction Interval", f"€{lo:,.0f} – €{hi:,.0f}")
+
+            # Position in distribution
+            percentile = (df['Rent'] < prediction).mean() * 100
+            fig_dist = px.histogram(df, x='Rent', nbins=40,
+                                    title='Where does this property sit in the market?',
+                                    color_discrete_sequence=['#E8D5B7'])
+            fig_dist.add_vline(x=prediction, line_color='#C0392B', line_width=2,
+                               annotation_text=f"Your property: €{prediction:,.0f}",
+                               annotation_position="top right",
+                               annotation_font_color='#C0392B')
+            st.plotly_chart(fig_dist, use_container_width=True)
+            st.caption(
+                f"This predicted rent is higher than {percentile:.0f}% of all listings in the dataset.")
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 4 — HIGH RENT CLASSIFIER
 # ══════════════════════════════════════════════════════════════════════════════
 elif page == "📊 High Rent Classifier":
 
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("Accuracy", f"{M['acc_l']:.2f}")
-    with col2:
-        st.metric("AUC Test", f"{M['auc_test_l']:.2f}")
-    with col3:
-        st.metric("AUC Gap", f"{M['auc_train_l'] - M['auc_test_l']:.2f}")
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=M['fpr_train'], y=M['tpr_train'], mode='lines', name='Train'))
-    fig.add_trace(go.Scatter(x=M['fpr_test'], y=M['tpr_test'], mode='lines', name='Test'))
-    fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines', line=dict(dash='dash'), name='Baseline'))
-    st.plotly_chart(fig, use_container_width=True)
+    with st.expander("How this works"):
+        st.write(
+            "Logistic regression trained on 80% of the dataset with stratified splitting to preserve "
+            "class balance (High Rent = Rent ≥ €1,800). VIF filtering (threshold = 10) was applied "
+            "before fitting. Model performance is evaluated via AUC-ROC on both train and test sets — "
+            "a near-zero gap confirms no overfitting. Odds ratios (Exp(B)) quantify each feature's "
+            "multiplicative effect on the probability of High Rent."
+        )
 
-    fig = px.imshow(M['cm_l'], text_auto=True, x=['Pred Low','Pred High'], y=['Actual Low','Actual High'])
-    st.plotly_chart(fig, use_container_width=True)
-    
-    st.dataframe(M['odds_table'])
+    tab_perf, tab_classify = st.tabs(["📈 Model Performance", "🔮 Classify Property"])
 
-    prob_low  = M['y_prob_l'][M['y_test_l'] == 0]
-    prob_high = M['y_prob_l'][M['y_test_l'] == 1]
-    
-    fig = go.Figure()
-    fig.add_trace(go.Histogram(x=prob_low, nbinsx=20, marker_color='blue', opacity=0.6, name='Low Rent'))
-    fig.add_trace(go.Histogram(x=prob_high, nbinsx=20, marker_color='red', opacity=0.6, name='High Rent'))
-    fig.update_layout(barmode='overlay', title='Probability Separation by Class')
-    fig.add_vline(x=0.5, line_color='black', line_width=2)
-    st.plotly_chart(fig, use_container_width=True)
+    with tab_perf:
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Accuracy",             f"{M['acc_l']:.2%}")
+        col2.metric("AUC Test",             f"{M['auc_test_l']:.3f}")
+        col3.metric("AUC Gap (Train−Test)", f"{M['auc_train_l'] - M['auc_test_l']:.3f}")
 
-    st.subheader("Is this property High Rent (≥ €1,800)?")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        sqm_l      = st.number_input("Size (m²)",    15,  500, 80,  key='l_sqm')
-        bedrooms_l = st.number_input("Bedrooms",      0,    8,  2,  key='l_bed')
-        floor_l    = st.number_input("Floor",          0,   25,  3,  key='l_floor')
-        outer_l    = st.checkbox("Exterior facing",            key='l_outer')
-    with col_b:
-        elevator_l   = st.checkbox("Has elevator",             key='l_elev')
-        is_special_l = st.checkbox("Penthouse / Duplex / Cottage", key='l_spec')
-        is_central_l = st.checkbox("Central district",         key='l_cent')
-        is_studio_l  = st.checkbox("Listed as Studio",         key='l_stud')
+        # ROC curve with AUC labels in legend
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=M['fpr_train'], y=M['tpr_train'], mode='lines',
+                                 name=f"Train (AUC={M['auc_train_l']:.3f})",
+                                 line_color='#3498DB'))
+        fig.add_trace(go.Scatter(x=M['fpr_test'],  y=M['tpr_test'],  mode='lines',
+                                 name=f"Test  (AUC={M['auc_test_l']:.3f})",
+                                 line_color='#C0392B'))
+        fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines',
+                                 line=dict(dash='dash', color='#95a5a6'), name='Baseline'))
+        fig.update_layout(title='ROC Curve',
+                          xaxis_title='False Positive Rate',
+                          yaxis_title='True Positive Rate')
+        st.plotly_chart(fig, use_container_width=True)
 
-    if st.button("Classify", type="primary"):
-        input_dict = {
-            'Sq.Mt': sqm_l, 'Bedrooms': bedrooms_l, 'Floor': floor_l,
-            'Outer': int(outer_l), 'Elevator': int(elevator_l),
-            'Is_Special': int(is_special_l), 'Is_Central': int(is_central_l),
-            'Is_Studio': int(is_studio_l)
-        }
-        input_df = pd.DataFrame([input_dict])[M['logit_features']]
-        input_sm = sm.add_constant(input_df, has_constant='add')
-        probability = float(M['logit_model'].predict(input_sm)[0])
-        label = "🔴 High Rent" if probability >= 0.5 else "🟢 Low Rent"
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Classification", label)
-        with col2:
-            st.metric("Probability of High Rent", f"{probability:.1%}")
-        gauge_chart = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=probability * 100,
-            number={'suffix': '%'},
-            title={'text': "Probability of High Rent"},
-            gauge={
-                'axis': {'range': [0, 100]},
-                'bar': {'color': '#e74c3c' if probability >= 0.5 else '#27ae60'},
-                'steps': [{'range': [0, 50],  'color': '#eafaf1'},
-                           {'range': [50, 100], 'color': '#fdedec'}],
-                'threshold': {'line': {'color': 'black', 'width': 3}, 'value': 50}
+        col_cm, col_sep = st.columns(2)
+
+        with col_cm:
+            fig = px.imshow(M['cm_l'], text_auto=True,
+                            x=['Pred Low', 'Pred High'],
+                            y=['Actual Low', 'Actual High'],
+                            color_continuous_scale='Reds',
+                            title='Confusion Matrix')
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption(
+                "**TN** (top-left): correctly predicted Low Rent · "
+                "**FP** (top-right): Low Rent wrongly flagged as High · "
+                "**FN** (bottom-left): missed High Rent property · "
+                "**TP** (bottom-right): correctly predicted High Rent"
+            )
+
+        with col_sep:
+            prob_low  = M['y_prob_l'][M['y_test_l'] == 0]
+            prob_high = M['y_prob_l'][M['y_test_l'] == 1]
+            fig = go.Figure()
+            fig.add_trace(go.Histogram(x=prob_low,  nbinsx=20, marker_color='#3498DB',
+                                       opacity=0.6, name='Low Rent'))
+            fig.add_trace(go.Histogram(x=prob_high, nbinsx=20, marker_color='#C0392B',
+                                       opacity=0.6, name='High Rent'))
+            fig.update_layout(barmode='overlay', title='Probability Separation by Class')
+            fig.add_vline(x=0.5, line_color='#2C3E50', line_width=2)
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Interactive threshold slider
+        st.subheader("Threshold Sensitivity")
+        threshold_val = st.slider(
+            "Classification threshold", 0.05, 0.95, 0.50, step=0.05,
+            help="Probability above this value → classified as High Rent. "
+                 "Lower = more sensitive (catches more High Rent but more false alarms)."
+        )
+        y_prob_arr = np.array(M['y_prob_l'])
+        y_test_arr = np.array(M['y_test_l'])
+        y_thresh   = (y_prob_arr >= threshold_val).astype(int)
+
+        tc1, tc2, tc3, tc4 = st.columns(4)
+        tc1.metric("Accuracy",  f"{accuracy_score(y_test_arr, y_thresh):.3f}")
+        tc2.metric("Precision", f"{precision_score(y_test_arr, y_thresh, zero_division=0):.3f}")
+        tc3.metric("Recall",    f"{recall_score(y_test_arr, y_thresh, zero_division=0):.3f}")
+        tc4.metric("F1",        f"{f1_score(y_test_arr, y_thresh, zero_division=0):.3f}")
+
+        # Reference table with closest row highlighted
+        def highlight_closest(row):
+            style = ('background-color:#FDF6EC; font-weight:bold;'
+                     if abs(row['Cutoff'] - threshold_val) < 0.06 else '')
+            return [style] * len(row)
+
+        st.caption("Reference table — five fixed cutoffs for quick comparison:")
+        st.dataframe(M['threshold_df'].style.apply(highlight_closest, axis=1),
+                     use_container_width=True)
+
+        st.subheader("Odds Ratios")
+        st.dataframe(M['odds_table'], use_container_width=True)
+
+    with tab_classify:
+        st.subheader("Is this property High Rent (≥ €1,800)?")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            sqm_l      = st.number_input("Size (m²)",    15,  500, 80,  key='l_sqm',
+                                         help="Total usable floor area in square metres")
+            bedrooms_l = st.number_input("Bedrooms",      0,    8,  2,  key='l_bed')
+            floor_l    = st.number_input("Floor",          0,   25,  3,  key='l_floor')
+            outer_l    = st.checkbox("Exterior facing",            key='l_outer')
+        with col_b:
+            elevator_l   = st.checkbox("Has elevator",             key='l_elev')
+            is_special_l = st.checkbox("Penthouse / Duplex / Cottage", key='l_spec',
+                                       help="Penthouse, duplex, cottage, or semidetached")
+            is_central_l = st.checkbox("Central district",         key='l_cent',
+                                       help="Salamanca, Chamberí, Retiro, or Centro")
+            is_studio_l  = st.checkbox("Listed as Studio",         key='l_stud')
+
+        if st.button("Classify", type="primary"):
+            input_dict = {
+                'Sq.Mt': sqm_l, 'Bedrooms': bedrooms_l, 'Floor': floor_l,
+                'Outer': int(outer_l), 'Elevator': int(elevator_l),
+                'Is_Special': int(is_special_l), 'Is_Central': int(is_central_l),
+                'Is_Studio': int(is_studio_l)
             }
-        ))
-        st.plotly_chart(gauge_chart, use_container_width=True)
+            input_df    = pd.DataFrame([input_dict])[M['logit_features']]
+            input_sm    = sm.add_constant(input_df, has_constant='add')
+            probability = float(M['logit_model'].predict(input_sm)[0])
+            label = "🔴 High Rent" if probability >= 0.5 else "🟢 Low Rent"
 
-    threshold_sensitivity_table = M['threshold_df'].round(2)
-    st.dataframe(threshold_sensitivity_table)
+            col_r1, col_r2 = st.columns(2)
+            col_r1.metric("Classification",           label)
+            col_r2.metric("Probability of High Rent", f"{probability:.1%}")
 
+            gauge_chart = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=probability * 100,
+                number={'suffix': '%'},
+                title={'text': "Probability of High Rent"},
+                gauge={
+                    'axis': {'range': [0, 100]},
+                    'bar': {'color': '#C0392B' if probability >= 0.5 else '#27AE60'},
+                    'steps': [{'range': [0, 50],   'color': '#eafaf1'},
+                               {'range': [50, 100], 'color': '#fdedec'}],
+                    'threshold': {'line': {'color': '#2C3E50', 'width': 3}, 'value': 50}
+                }
+            ))
+            st.plotly_chart(gauge_chart, use_container_width=True)
