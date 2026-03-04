@@ -858,23 +858,14 @@ elif page == "📊 High Rent Classifier":
             "multiplicative effect on the probability of High Rent."
         )
 
-    st.subheader("Classification Threshold")
-    threshold_val = st.slider(
-        "Probability cutoff for High Rent classification", 0.05, 0.95, 0.50, step=0.05,
-        key='class_threshold',
-        help="Probability above this value → classified as High Rent. "
-             "Lower = more sensitive (catches more High Rent but more false alarms). "
-             "This threshold applies to both the performance metrics and the classifier below."
-    )
     y_prob_arr = np.array(M['y_prob_l'])
     y_test_arr = np.array(M['y_test_l'])
-    y_thresh   = (y_prob_arr >= threshold_val).astype(int)
 
     tab_perf, tab_classify = st.tabs(["📈 Model Performance", "🔮 Classify Property"])
 
     with tab_perf:
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Accuracy",             f"{M['acc_l']:.2%}")
+        col1.metric("Accuracy",             f"{M['acc_l']:.2%}", help="Computed at threshold 0.50. Adjust the slider below to see threshold-specific accuracy in the Threshold Sensitivity section.")
         col2.metric("AUC Test",             f"{M['auc_test_l']:.3f}")
         col3.metric("AUC Gap (Train−Test)", f"{M['auc_train_l'] - M['auc_test_l']:.3f}")
         col4.metric("McFadden's R²",        f"{M['logit_model'].prsquared:.3f}",
@@ -895,10 +886,19 @@ elif page == "📊 High Rent Classifier":
                           yaxis_title='True Positive Rate')
         st.plotly_chart(fig, use_container_width=True)
 
+        threshold_val = st.slider(
+            "Probability cutoff for High Rent classification", 0.05, 0.95, 0.50, step=0.05,
+            key='class_threshold',
+            help="Probability above this value → classified as High Rent. "
+                 "Lower = more sensitive (catches more High Rent but more false alarms). "
+                 "This threshold applies to both the performance metrics and the classifier below."
+        )
+        y_thresh = (y_prob_arr >= threshold_val).astype(int)
+
         col_cm, col_sep = st.columns(2)
 
         with col_cm:
-            fig = px.imshow(M['cm_l'], text_auto=True,
+            fig = px.imshow(confusion_matrix(y_test_arr, y_thresh), text_auto=True,
                             x=['Pred Low', 'Pred High'],
                             y=['Actual Low', 'Actual High'],
                             color_continuous_scale='Reds',
@@ -946,6 +946,7 @@ elif page == "📊 High Rent Classifier":
         st.dataframe(M['odds_table'], use_container_width=True)
 
     with tab_classify:
+        threshold_val = st.session_state.get('class_threshold', 0.50)
         st.subheader("Is this property High Rent (≥ €1,800)?")
         col_a, col_b = st.columns(2)
         with col_a:
