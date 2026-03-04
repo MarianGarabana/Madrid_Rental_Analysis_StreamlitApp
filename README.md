@@ -23,6 +23,7 @@ This dashboard brings a full end-to-end machine learning pipeline to life using 
 |---|---|
 | **Market Explorer** | Filter listings by district and rent range. View rent distributions, median rent by district, rent vs. size scatter plots, and a correlation heatmap. |
 | **Property Segments** | Explore 5 K-Means clusters with radar charts and segment profiles. Enter a property's attributes to classify it into its market segment. |
+| **Association Rules** | Apriori algorithm applied to binary property attributes and market segment labels. Interactive filters for confidence, lift, support, and rule complexity. Top rules visualised as bar and scatter charts. |
 | **Rent Predictor** | OLS linear regression with VIF filtering and RFECV feature selection. Predict monthly rent with a 95% prediction interval and see where it sits in the market distribution. |
 | **High Rent Classifier** | Logistic regression with interactive ROC curve, confusion matrix, odds ratios, and a probability gauge. Classify any property as High Rent (≥ €1,800). |
 
