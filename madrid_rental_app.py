@@ -17,6 +17,10 @@ from sklearn.metrics import (r2_score, mean_squared_error, mean_absolute_error,
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import statsmodels.api as sm
 from scipy import stats
+from streamlit_extras.metric_cards import style_metric_cards
+from streamlit_extras.dataframe_explorer import dataframe_explorer
+from streamlit_extras.chart_container import chart_container
+from streamlit_extras.add_vertical_space import add_vertical_space
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -328,6 +332,8 @@ with st.spinner("Training models…"):
 df['Cluster'] = M['cluster_labels']
 df['Segment'] = df['Cluster'].map(lambda c: M['segment_labels'][c][0])
 
+style_metric_cards(background_color="#FDF6EC", border_left_color="#C0392B", border_radius_px=6)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SIDEBAR
@@ -414,25 +420,28 @@ if page == "🔍 Market Explorer":
     with tab_charts:
         # Annotated histogram
         median_val = filtered['Rent'].median()
-        fig = px.histogram(filtered, x='Rent', nbins=40, title='Rent Distribution',
-                           color_discrete_sequence=['#C0392B'])
-        fig.add_vline(x=median_val, line_width=2, line_color='#2C3E50',
-                      annotation_text=f"Median: €{median_val:,.0f}",
-                      annotation_position="top right",
-                      annotation_font_color='#2C3E50')
-        st.plotly_chart(fig, use_container_width=True)
+        with chart_container(filtered[['Rent']]):
+            fig = px.histogram(filtered, x='Rent', nbins=40, title='Rent Distribution',
+                               color_discrete_sequence=['#C0392B'])
+            fig.add_vline(x=median_val, line_width=2, line_color='#2C3E50',
+                          annotation_text=f"Median: €{median_val:,.0f}",
+                          annotation_position="top right",
+                          annotation_font_color='#2C3E50')
+            st.plotly_chart(fig, use_container_width=True)
 
         # Box plot by district
-        fig = px.box(filtered, x='Rent', y='District',
-                     title='Rent Distribution by District',
-                     color_discrete_sequence=['#C0392B'])
-        fig.update_layout(yaxis={'categoryorder': 'median ascending'})
-        st.plotly_chart(fig, use_container_width=True)
+        with chart_container(filtered[['District', 'Rent']]):
+            fig = px.box(filtered, x='Rent', y='District',
+                         title='Rent Distribution by District',
+                         color_discrete_sequence=['#C0392B'])
+            fig.update_layout(yaxis={'categoryorder': 'median ascending'})
+            st.plotly_chart(fig, use_container_width=True)
 
         # Scatter
-        fig = px.scatter(filtered, x='Sq.Mt', y='Rent', color='District',
-                         size='Rent', title='Rent vs Size', opacity=0.7)
-        st.plotly_chart(fig, use_container_width=True)
+        with chart_container(filtered[['Sq.Mt', 'Rent', 'District']]):
+            fig = px.scatter(filtered, x='Sq.Mt', y='Rent', color='District',
+                             size='Rent', title='Rent vs Size', opacity=0.7)
+            st.plotly_chart(fig, use_container_width=True)
 
         # Correlation heatmap
         fig = px.imshow(
@@ -463,10 +472,11 @@ if page == "🔍 Market Explorer":
         st.plotly_chart(fig, use_container_width=True)
 
     with tab_data:
-        st.dataframe(filtered)
+        explored = dataframe_explorer(filtered, case=False)
+        st.dataframe(explored, use_container_width=True)
         st.download_button(
             "⬇️ Download filtered data as CSV",
-            filtered.to_csv(index=False),
+            explored.to_csv(index=False),
             file_name="madrid_rentals_filtered.csv",
             mime="text/csv",
         )
@@ -517,7 +527,7 @@ elif page == "🏘️ Property Segments":
                 </div>
                 """, unsafe_allow_html=True)
 
-        st.markdown("")
+        add_vertical_space(1)
 
         col_pie, col_bar = st.columns(2)
         with col_pie:
