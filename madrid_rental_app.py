@@ -655,10 +655,10 @@ elif page == "🔗 Association Rules":
     max_ant = int(all_rules['n_antecedents'].max()) if not all_rules.empty else 3
     max_con = int(all_rules['n_consequents'].max()) if not all_rules.empty else 3
     col_nant, col_ncon = st.columns(2)
-    sel_ant = col_nant.slider("Max Antecedents", 1, max_ant, max_ant,
-                              help="Keep only rules with at most this many antecedent items.")
-    sel_con = col_ncon.slider("Max Consequents", 1, max_con, max_con,
-                              help="Keep only rules with at most this many consequent items.")
+    sel_ant = col_nant.number_input("Max Antecedents", min_value=1, max_value=max_ant, value=max_ant, step=1,
+                                    help="Keep only rules with at most this many antecedent items.")
+    sel_con = col_ncon.number_input("Max Consequents", min_value=1, max_value=max_con, value=max_con, step=1,
+                                    help="Keep only rules with at most this many consequent items.")
 
     filtered_rules = all_rules[
         (all_rules['confidence'] >= min_conf) &
