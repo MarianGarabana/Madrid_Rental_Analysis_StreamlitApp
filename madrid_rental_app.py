@@ -600,14 +600,15 @@ elif page == "Property Segments":
     ).reset_index()
 
     seg_desc   = {name: desc for _, (name, desc) in M['segment_labels'].items()}
-    seg_colors = ['#3498DB', '#2ECC71', '#F39C12', '#9B59B6', '#B72683']
+    _seg_color_list = ['#E2F46E', '#B72683', '#6DB300', '#FFB3D9', '#FF69B4']
+    seg_color_map = {M['segment_labels'][i][0]: _seg_color_list[i] for i in range(5)}
 
     tab_overview, tab_classify = st.tabs(["📊 Overview", "🔮 Classify Property"])
 
     with tab_overview:
         # Segment expanders
         for i, (_, row) in enumerate(summary.iterrows()):
-            color     = seg_colors[i % len(seg_colors)]
+            color     = seg_color_map.get(row['Segment'], _seg_color_list[i % len(_seg_color_list)])
             full_desc = seg_desc.get(row['Segment'], '')
             st.markdown(f"""
             <details style="border:1px solid #e0e0e0; border-left:4px solid {color};
@@ -630,22 +631,22 @@ elif page == "Property Segments":
         col_pie, col_bar = st.columns(2)
         with col_pie:
             fig = px.pie(summary, values='Properties', names='Segment',
-                         color_discrete_sequence=seg_colors, hole=0.35)
+                         color='Segment', color_discrete_map=seg_color_map, hole=0.35)
             chart_header("Share of Listings per Segment", "Proportion of all listings assigned to each K-Means cluster. Larger slices represent the dominant rental stock in Madrid.")
             st.plotly_chart(fig, use_container_width=True)
         with col_bar:
-            fig = px.bar(summary.sort_values('Median_rent'), x='Segment', y='Median_rent',
-                         color='Median_rent', color_continuous_scale='RdPu', text='Median_rent',
+            fig = px.bar(summary.sort_values('Median_rent', ascending=False), x='Segment', y='Median_rent',
+                         color='Segment', color_discrete_map=seg_color_map, text='Median_rent',
                          labels={'Segment': '', 'Median_rent': ''})
             fig.update_traces(texttemplate='€%{text:,.0f}', textposition='outside')
-            fig.update_layout(xaxis_title='', yaxis_title='')
+            fig.update_layout(xaxis_title='', yaxis_title='', showlegend=False)
             chart_header("Median Rent by Segment", "Median monthly rent for each segment. Highlights the price gap between budget interiors and premium/estate properties.")
             st.plotly_chart(fig, use_container_width=True)
 
         # Scatter
         fig = px.scatter(df, x='Sq.Mt', y='Rent', color='Segment',
                          size='Price_per_sqm',
-                         opacity=0.7, color_discrete_sequence=seg_colors)
+                         opacity=0.7, color_discrete_map=seg_color_map)
         chart_header("Rent vs Size by Segment", "Each listing plotted by size (m²) vs. rent, colored by segment. Bubble size reflects price per m² — useful for spotting value vs. premium positioning within each cluster.")
         st.plotly_chart(fig, use_container_width=True)
 
@@ -666,7 +667,7 @@ elif page == "Property Segments":
                 theta=radar_labels + [radar_labels[0]],
                 fill='toself',
                 name=row['Segment'],
-                line_color=seg_colors[i % len(seg_colors)],
+                line_color=seg_color_map.get(row['Segment'], _seg_color_list[i % len(_seg_color_list)]),
                 opacity=0.75,
             ))
         fig_radar.update_layout(
@@ -968,7 +969,7 @@ elif page == "High Rent Classifier":
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=M['fpr_train'], y=M['tpr_train'], mode='lines',
                                  name=f"Train (AUC={M['auc_train_l']:.3f})",
-                                 line_color='#3498DB'))
+                                 line_color='#6DB300'))
         fig.add_trace(go.Scatter(x=M['fpr_test'],  y=M['tpr_test'],  mode='lines',
                                  name=f"Test  (AUC={M['auc_test_l']:.3f})",
                                  line_color='#B72683'))
