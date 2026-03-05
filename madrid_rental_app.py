@@ -392,11 +392,23 @@ st.divider()
 # ══════════════════════════════════════════════════════════════════════════════
 if page == "🔍 Market Explorer":
     rent_min, rent_max = int(df['Rent'].min()), int(df['Rent'].max())
-    selected_rent = st.sidebar.slider("Rent Range (€)", rent_min, rent_max, (rent_min, rent_max))
-    selected_districts = st.sidebar.multiselect(
-        "Select Districts:", df['District'].unique().tolist(),
-        default=df['District'].unique().tolist()
-    )
+
+    # ── Filters above KPIs ──────────────────────────────────────────────────
+    f_col1, f_col2 = st.columns([2, 1])
+    with f_col1:
+        selected_rent = st.slider("Rent Range (€)", rent_min, rent_max, (rent_min, rent_max))
+    with f_col2:
+        all_districts = sorted(df['District'].unique().tolist())
+        district_options = ["All"] + all_districts
+        selected_district_opts = st.multiselect(
+            "Districts", district_options, default=["All"],
+            placeholder="Choose districts…"
+        )
+        selected_districts = (
+            all_districts
+            if ("All" in selected_district_opts or len(selected_district_opts) == 0)
+            else selected_district_opts
+        )
 
     filtered = df[
         df['District'].isin(selected_districts) &
@@ -421,7 +433,7 @@ if page == "🔍 Market Explorer":
     with st.expander("How this works"):
         st.write(
             f"Exploratory analysis of {len(df):,} Madrid rental listings sourced from Idealista. "
-            "Use the sidebar to filter by rent range and district. "
+            "Use the rent slider and district dropdown above to filter the dataset. "
             "Delta arrows compare your filtered selection against the full dataset baseline."
         )
 
@@ -437,6 +449,7 @@ if page == "🔍 Market Explorer":
                           annotation_text=f"Median: €{median_val:,.0f}",
                           annotation_position="top right",
                           annotation_font_color='#2C3E50')
+            st.caption("Distribution of monthly rent prices across the filtered selection. The vertical line marks the median rent.")
             st.plotly_chart(fig, use_container_width=True)
 
         # Box plot by district
@@ -445,15 +458,19 @@ if page == "🔍 Market Explorer":
                          title='Rent Distribution by District',
                          color_discrete_sequence=['#C0392B'])
             fig.update_layout(yaxis={'categoryorder': 'median ascending'})
+            st.caption("Box plots showing the spread, median, and outliers of rent by district, ordered from lowest to highest median.")
             st.plotly_chart(fig, use_container_width=True)
 
         # Scatter
         with chart_container(filtered[['Sq.Mt', 'Rent', 'District']]):
             fig = px.scatter(filtered, x='Sq.Mt', y='Rent', color='District',
                              size='Rent', title='Rent vs Size', opacity=0.7)
+            st.caption("Scatter plot of property size (m²) against monthly rent, colored by district. Bubble size scales with rent value.")
             st.plotly_chart(fig, use_container_width=True)
 
         # Correlation heatmap
+        st.markdown("**Correlation Matrix**")
+        st.caption("Pairwise Pearson correlations between numeric features. Dark red indicates strong positive correlation; dark blue indicates inverse correlation.")
         fig = px.imshow(
             filtered[['Rent','Sq.Mt','Bedrooms','Floor','Outer','Elevator']].corr(),
             text_auto='.2f', color_continuous_scale='RdBu_r', title='Correlation Matrix'
@@ -469,12 +486,16 @@ if page == "🔍 Market Explorer":
         zone_summary.columns = ['Zone', 'Median Rent', 'Mean Rent', 'Count']
         zone_summary = zone_summary.sort_values('Median Rent', ascending=False)
 
+        st.markdown("**Median Rent by Geographic Zone**")
+        st.caption("Aggregated median rent grouped by broad geographic zone. Bar color reflects the rent level — darker red means higher median rent.")
         fig = px.bar(zone_summary, x='Zone', y='Median Rent',
                      title='Median Rent by Geographic Zone',
                      color='Median Rent', color_continuous_scale='Reds', text='Median Rent')
         fig.update_traces(texttemplate='€%{text:,.0f}', textposition='outside')
         st.plotly_chart(fig, use_container_width=True)
 
+        st.markdown("**Rent Distribution by Zone**")
+        st.caption("Box plots comparing the full rent spread across geographic zones, ordered by median rent. Whiskers extend to 1.5× IQR; dots are outliers.")
         fig = px.box(filtered, x='Rent', y='Zone',
                      title='Rent Distribution by Zone',
                      color_discrete_sequence=['#C0392B'])
@@ -544,18 +565,21 @@ elif page == "🏘️ Property Segments":
             fig = px.pie(summary, values='Properties', names='Segment',
                          title='Share of Listings per Segment',
                          color_discrete_sequence=seg_colors, hole=0.35)
+            st.caption("Proportion of all listings assigned to each K-Means cluster. Larger slices represent the dominant rental stock in Madrid.")
             st.plotly_chart(fig, use_container_width=True)
         with col_bar:
             fig = px.bar(summary.sort_values('Median_rent'), x='Segment', y='Median_rent',
                          title='Median Rent by Segment',
                          color='Median_rent', color_continuous_scale='Reds', text='Median_rent')
             fig.update_traces(texttemplate='€%{text:,.0f}', textposition='outside')
+            st.caption("Median monthly rent for each segment. Highlights the price gap between budget interiors and premium/estate properties.")
             st.plotly_chart(fig, use_container_width=True)
 
         # Scatter
         fig = px.scatter(df, x='Sq.Mt', y='Rent', color='Segment',
                          size='Price_per_sqm', title='Rent vs Size by Segment',
                          opacity=0.7, color_discrete_sequence=seg_colors)
+        st.caption("Each listing plotted by size (m²) vs. rent, colored by segment. Bubble size reflects price per m² — useful for spotting value vs. premium positioning within each cluster.")
         st.plotly_chart(fig, use_container_width=True)
 
         # Radar chart — compare segments across normalised dimensions
@@ -583,6 +607,7 @@ elif page == "🏘️ Property Segments":
             title='Segment Profiles (each dimension normalised 0–100)',
             height=500,
         )
+        st.caption("Radar chart comparing all five segments across key dimensions, each normalised to 0–100. Larger area = more extreme profile; useful for spotting how clusters differ holistically.")
         st.plotly_chart(fig_radar, use_container_width=True)
 
     with tab_classify:
@@ -703,6 +728,7 @@ elif page == "🔗 Association Rules":
             labels={'lift': 'Lift', 'rule': '', 'confidence': 'Confidence'},
         )
         fig.update_layout(yaxis={'categoryorder': 'total ascending'}, height=max(400, top_n * 38))
+        st.caption("Top rules ranked by lift — the ratio of observed co-occurrence to what would be expected by chance. Bar color encodes confidence: how reliably the consequent follows the antecedent.")
         st.plotly_chart(fig, use_container_width=True)
 
         add_vertical_space(1)
@@ -716,6 +742,7 @@ elif page == "🔗 Association Rules":
             labels={'support': 'Support', 'confidence': 'Confidence', 'lift': 'Lift'},
         )
         fig2.add_hline(y=min_conf, line_dash='dot', line_color='#2C3E50')
+        st.caption("Each rule plotted by how common it is (support) vs. how reliable it is (confidence). Bubble size and color encode lift — look for rules in the top-right with large bubbles for the strongest patterns.")
         st.plotly_chart(fig2, use_container_width=True)
 
 
@@ -752,6 +779,7 @@ elif page == "💶 Rent Predictor":
                      orientation='h',
                      color_discrete_map={'Increases rent': '#27AE60', 'Decreases rent': '#C0392B'},
                      title='Effect of Each Feature on Rent (€)')
+        st.caption("OLS regression coefficients expressed in euros. Each bar shows the estimated change in monthly rent for a one-unit increase in that feature, holding all others constant.")
         st.plotly_chart(fig, use_container_width=True)
 
         col_scatter, col_resid = st.columns(2)
@@ -763,6 +791,7 @@ elif page == "💶 Rent Predictor":
             min_v, max_v = float(M['y_test_r'].min()), float(M['y_test_r'].max())
             fig.add_shape(type='line', x0=min_v, y0=min_v, x1=max_v, y1=max_v,
                           line=dict(color='#2C3E50', dash='dash'))
+            st.caption("Each point is a test-set property. Points near the dashed diagonal indicate accurate predictions; vertical spread reveals the model's error range.")
             st.plotly_chart(fig, use_container_width=True)
 
         with col_resid:
@@ -772,6 +801,7 @@ elif page == "💶 Rent Predictor":
                              title='Residuals vs Actual Rent',
                              opacity=0.6, color_discrete_sequence=['#3498DB'])
             fig.add_hline(y=0, line_dash='dash', line_color='#2C3E50')
+            st.caption("Residuals should scatter randomly around zero (dashed line) with no visible pattern. A fan shape would signal heteroscedasticity; a curve would suggest a non-linear relationship.")
             st.plotly_chart(fig, use_container_width=True)
 
         # Q-Q plot — residual normality check
@@ -892,6 +922,7 @@ elif page == "📊 High Rent Classifier":
         fig.update_layout(title='ROC Curve',
                           xaxis_title='False Positive Rate',
                           yaxis_title='True Positive Rate')
+        st.caption("ROC curves for train and test sets. AUC measures the model's ability to rank High Rent above Low Rent listings. A near-zero train/test AUC gap confirms no meaningful overfitting.")
         st.plotly_chart(fig, use_container_width=True)
 
         threshold_val = st.slider(
@@ -931,6 +962,7 @@ elif page == "📊 High Rent Classifier":
             fig.add_vline(x=threshold_val, line_color='#2C3E50', line_width=2,
                           annotation_text=f"Threshold: {threshold_val:.2f}",
                           annotation_position="top right")
+            st.caption("Predicted probability distributions for Low Rent (blue) and High Rent (red) listings. Good separation between the peaks indicates a well-calibrated model. The vertical line shows the active classification threshold.")
             st.plotly_chart(fig, use_container_width=True)
 
         st.subheader("Threshold Sensitivity")
