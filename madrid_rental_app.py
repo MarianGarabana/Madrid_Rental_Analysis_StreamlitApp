@@ -841,7 +841,7 @@ elif page == "Rent Predictor":
             lambda x: 'Increases rent' if x > 0 else 'Decreases rent')
         fig = px.bar(coef_plot, x='Effect (€)', y='Feature', color='Direction',
                      orientation='h',
-                     color_discrete_map={'Increases rent': '#27AE60', 'Decreases rent': '#B72683'})
+                     color_discrete_map={'Increases rent': '#E2F46E', 'Decreases rent': '#B72683'})
         chart_header("Feature Effects on Rent", "OLS regression coefficients expressed in euros. Each bar shows the estimated change in monthly rent for a one-unit increase in that feature, holding all others constant.")
         st.plotly_chart(fig, use_container_width=True)
 
@@ -860,7 +860,7 @@ elif page == "Rent Predictor":
             residuals = np.array(M['y_pred_r']) - np.array(M['y_test_r'])
             fig = px.scatter(x=M['y_test_r'], y=residuals,
                              labels={'x': 'Actual Rent (€)', 'y': 'Residual (Predicted − Actual, €)'},
-                             opacity=0.6, color_discrete_sequence=['#3498DB'])
+                             opacity=0.6, color_discrete_sequence=['#E2F46E'])
             fig.add_hline(y=0, line_dash='dash', line_color='#333333')
             chart_header("Residuals vs Actual Rent", "Residuals should scatter randomly around zero (dashed line) with no visible pattern. A fan shape would signal heteroscedasticity; a curve would suggest a non-linear relationship.")
             st.plotly_chart(fig, use_container_width=True)
