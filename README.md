@@ -7,7 +7,7 @@
 [![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
 
-**Live App:** [madridrentalapp-mariangarabana.streamlit.app](https://madridrentalapp-mariangarabana.streamlit.app/)
+**Live App:** [https://madridrentalanalysisapp-mariangarabana.streamlit.app/)
 
 ---
 
