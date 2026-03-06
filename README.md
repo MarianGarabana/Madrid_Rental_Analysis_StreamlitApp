@@ -21,11 +21,11 @@ This dashboard brings a full end-to-end machine learning pipeline to life using 
 
 | Page | Description |
 |---|---|
-| **Market Explorer** | Filter listings by district and rent range. View rent distributions, median rent by district, rent vs. size scatter plots, and a correlation heatmap. |
-| **Property Segments** | Explore 5 K-Means clusters with radar charts and segment profiles. Enter a property's attributes to classify it into its market segment. |
-| **Association Rules** | Apriori algorithm applied to binary property attributes and market segment labels. Interactive filters for confidence, lift, support, and rule complexity. Top rules visualised as bar and scatter charts. |
-| **Rent Predictor** | OLS linear regression with VIF filtering and RFECV feature selection. Predict monthly rent with a 95% prediction interval and see where it sits in the market distribution. |
-| **High Rent Classifier** | Logistic regression with interactive ROC curve, confusion matrix, odds ratios, and a probability gauge. Classify any property as High Rent (≥ €1,800). |
+| **Market Explorer** | Filter listings by district and rent range. Three tabs: **Charts** (rent distribution histogram, box plots by district, rent vs. size scatter, correlation heatmap); **By Zone** (median rent by geographic zone bar chart, rent distribution by zone box plot); **Raw Data** (filterable table with CSV download). |
+| **Property Segments** | Explore 5 K-Means clusters. Overview tab shows segment expanders, share of listings donut chart, median rent bar chart, rent vs. size scatter, and a normalised radar chart comparing all segments. Classify tab predicts the segment of any property. |
+| **Association Rules** | Apriori algorithm applied to binary property attributes and market segment labels. Interactive filters for confidence, lift, support, confidence difference, confidence ratio, and rule complexity (antecedents/consequents). Top rules visualised as a horizontal bar chart and a support vs. confidence scatter. |
+| **Rent Predictor** | OLS linear regression with VIF filtering and RFECV feature selection. Predict monthly rent with a 95% prediction interval and see where it sits in the market distribution. Performance tab includes coefficient chart, actual vs. predicted scatter, residual plot, and Q-Q normality check. |
+| **High Rent Classifier** | Logistic regression with interactive probability threshold. Performance tab shows ROC curve (train + test), confusion matrix, probability separation histogram, threshold sensitivity table, and odds ratios. Classify tab outputs a probability gauge for any property. |
 
 ---
 
@@ -64,8 +64,8 @@ This dashboard brings a full end-to-end machine learning pipeline to life using 
 |---|---|
 | **App Framework** | [Streamlit](https://streamlit.io/), streamlit-extras |
 | **Data** | pandas, numpy, openpyxl |
-| **Machine Learning** | scikit-learn (KMeans, RFECV, train_test_split) |
-| **Statistics** | statsmodels (OLS, Logit, VIF) |
+| **Machine Learning** | scikit-learn (KMeans, RFECV, train_test_split), mlxtend (Apriori, association_rules) |
+| **Statistics** | statsmodels (OLS, Logit, VIF), scipy (Q-Q normality test) |
 | **Visualization** | Plotly Express, Plotly Graph Objects |
 
 ---
